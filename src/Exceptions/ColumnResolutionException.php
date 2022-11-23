@@ -1,6 +1,6 @@
 <?php
 
-namespace Socodo\ORM;
+namespace Socodo\ORM\Exceptions;
 
 use RuntimeException;
 

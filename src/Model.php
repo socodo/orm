@@ -2,7 +2,6 @@
 
 namespace Socodo\ORM;
 
-use InvalidArgumentException;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionProperty;
