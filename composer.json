@@ -1,0 +1,25 @@
+{
+    "name": "socodo/orm",
+    "description": "ORM component for socodo.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Socodo\\ORM\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Qroffle Inc.",
+            "email": "socodo@qroffle.com"
+        }
+    ],
+    "require": {
+        "ext-pdo": "*"
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.0",
+        "codeception/module-asserts": "*",
+        "codeception/module-db": "^3.0"
+    }
+}
