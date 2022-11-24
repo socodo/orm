@@ -2,7 +2,9 @@
 
 namespace Socodo\ORM;
 
+use ArrayIterator;
 use InvalidArgumentException;
+use Iterator;
 use Socodo\ORM\Columns\ModelColumn;
 use Socodo\ORM\Enums\QueryTypes;
 use Socodo\ORM\Interfaces\ColumnInterface;
@@ -53,6 +55,64 @@ class Repository
         }
 
         return $this->modelClass::from($result);
+    }
+
+    /**
+     * Find a row with conditions.
+     *
+     * @param array $where
+     * @return ?T
+     */
+    public function findOne (array $where = []): ?Model
+    {
+        $query = $this->createBaseQuery(QueryTypes::Select);
+        if (!empty($where))
+        {
+            $query->setWhere($where);
+        }
+
+        $db = DB::getInstance();
+        $result = $db->queryThenFetch($query, $query->getBindings());
+        if ($result === false)
+        {
+            return null;
+        }
+
+        return $this->modelClass::from($result);
+    }
+
+    /**
+     * Find rows with conditions.
+     *
+     * @param array $where
+     * @param bool $lazy
+     * @return Iterator<T>
+     */
+    public function find (array $where = [], bool $lazy = false): Iterator
+    {
+        $query = $this->createBaseQuery(QueryTypes::Select);
+        if (!empty($where))
+        {
+            $query->setWhere($where);
+        }
+
+        $db = DB::getInstance();
+        $stmt = $db->query($query, $query->getBindings());
+        if ($lazy)
+        {
+            return new LazyModelIterator($this->modelClass, $stmt);
+        }
+
+        $results = $db->fetchAll($stmt);
+        if ($results === false)
+        {
+            return new ArrayIterator([]);
+        }
+
+        $modelClass = $this->modelClass;
+        return new ArrayIterator(array_map(static function ($result) use ($modelClass) {
+            return $modelClass::from($result);
+        }, $results));
     }
 
     /**

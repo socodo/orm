@@ -16,7 +16,7 @@ class RepositoryTest extends Unit
 {
     protected UnitTester $tester;
 
-    protected function _before()
+    protected function _before ()
     {
         new DB('127.0.0.1:3306', 'socodo', 'socodo', 'socodo');
     }
@@ -26,7 +26,7 @@ class RepositoryTest extends Unit
      *
      * @return void
      */
-    public function testGet(): void
+    public function testGet (): void
     {
         $repository = new Repository(User::class);
 
@@ -39,6 +39,46 @@ class RepositoryTest extends Unit
         $get = $repository->get(2);
         $this->tester->seeInDatabase('user', [ 'id' => $get->id, 'email_address' => $get->emailAddress ]);
         $this->tester->seeInDatabase('profile', [ 'id' => $get->profile->id, 'name' => $get->profile->name, 'nick_name' => $get->profile->nickName ]);
+    }
+
+    /**
+     * Repository::findOne()
+     *
+     * @return void
+     */
+    public function testFindOne (): void
+    {
+        $repository = new Repository(User::class);
+
+        $find = $repository->findOne([ 'id' => 0 ]);
+        $this->assertNull($find);
+
+        $find = $repository->findOne([ 'id' => 1 ]);
+        $this->tester->seeInDatabase('user', [ 'id' => $find->id, 'email_address' => $find->emailAddress ]);
+
+        $find = $repository->findOne([ 'email_address' => $find->emailAddress ]);
+        $this->tester->seeInDatabase('user', [ 'id' => $find->id, 'email_address' => $find->emailAddress ]);
+
+        $find = $repository->findOne([]);
+        $this->assertEquals(1, $find->id);
+        $this->tester->seeInDatabase('user', [ 'id' => $find->id, 'email_address' => $find->emailAddress ]);
+    }
+
+    /**
+     * Repository::find()
+     *
+     * @return void
+     */
+    public function testFind (): void
+    {
+        $repository = new Repository(User::class);
+
+        $find = $repository->find();
+        $this->assertIsIterable($find);
+        foreach ($find as $user)
+        {
+            $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
+        }
     }
 }
 
