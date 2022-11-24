@@ -6,6 +6,7 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionProperty;
 use Socodo\ORM\Columns\StringColumn;
+use Socodo\ORM\Exceptions\ColumnResolutionException;
 use Socodo\ORM\Interfaces\ModelAttributeInterface;
 use Socodo\ORM\Attributes\Table;
 use Socodo\ORM\Columns\BoolColumn;
@@ -49,29 +50,51 @@ class Model
         }
 
         $new = new static();
-        foreach (static::getColumns() as $name => $column)
+        foreach (static::getColumns() as $column)
         {
+            $property = $column->getBoundProperty();
             $columnName = $column->getName();
+
             if (isset($data[static::getTableName() . '___' . $columnName]))
             {
                 $data[$columnName] = $data[static::getTableName() . '___' . $columnName];
             }
             if (!isset($data[$columnName]))
             {
-                if (!$column->getDefault())
+                if ($column instanceof IntegerColumn && $column->isAutoIncrement())
                 {
-                    throw new ModelResolutionException('');
+                    continue;
                 }
-                $data[$columnName] = $column->getDefault();
+
+                if (!$column->getDefault() && !$column->isNullable())
+                {
+                    throw new ModelResolutionException(static::class . '::from() Column "' . $columnName . '" for property $' . $property . ' cannot be null.');
+                }
+                $data[$columnName] = $column->getDefault() ?? null;
             }
 
-            if (!$column instanceof ModelColumn)
+            try
             {
-                $new->{$name} = $column->from($data[$columnName]);
-                continue;
+                if ($data[$columnName] === null && $column->isNullable())
+                {
+                    $new->{$property} = null;
+                    continue;
+                }
+                if (!$column instanceof ModelColumn)
+                {
+                    $new->{$property} = $column->from($data[$columnName]);
+                    continue;
+                }
+                $new->{$property} = $column->from($data);
             }
-
-            $new->{$name} = $column->from($data);
+            catch (ModelResolutionException $e)
+            {
+                if ($column->isNullable())
+                {
+                    $new->{$property} = null;
+                }
+                throw $e;
+            }
         }
 
         return $new;
@@ -143,6 +166,7 @@ class Model
                     }) ()
                 };
 
+                $column->setBoundProperty($name);
                 if ($typeAllowsNull)
                 {
                     $column->setNullable(true);
@@ -156,7 +180,7 @@ class Model
                     $attr->handle($column);
                 }
 
-                $columns[$name] = $column;
+                $columns[] = $column;
             }
 
             static::$columns[static::class] = $columns;

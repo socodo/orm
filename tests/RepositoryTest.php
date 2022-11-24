@@ -80,6 +80,40 @@ class RepositoryTest extends Unit
             $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
         }
     }
+
+    /**
+     * Repository::save()
+     *
+     * @return void
+     */
+    public function testSave (): void
+    {
+        $repository = new Repository(User::class);
+
+        $user = new User();
+        $user->emailAddress = 'new@save.com';
+        $this->assertTrue($repository->save($user));
+
+        $user = $repository->get($user->id);
+        $user->emailAddress = 'save@save.com';
+        $this->assertTrue($repository->save($user));
+        $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
+
+        $user = new User();
+        $user->emailAddress = 'profile@save.com';
+        $user->profile = new Profile();
+        $user->profile->name = 'Profile Doe';
+        $user->profile->nickName = 'profile';
+        $this->assertTrue($repository->save($user));
+        $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
+        $this->tester->seeInDatabase('profile', [ 'id' => $user->profile->id, 'name' => $user->profile->name, 'nick_name' => $user->profile->nickName ]);
+
+        $user = User::from([
+            'email_address' => 'from@save.com'
+        ]);
+        $this->assertTrue($repository->save($user));
+        $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
+    }
 }
 
 #[Table('user')]
@@ -92,7 +126,7 @@ class User extends Model
     public string $emailAddress;
 
     #[Column('profile_id')]
-    public Profile $profile;
+    public ?Profile $profile = null;
 }
 
 #[Table('profile')]

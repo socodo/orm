@@ -8,6 +8,7 @@ abstract class ColumnAbstract implements ColumnInterface
 {
     /** @var string Column name. */
     protected string $name;
+
     /** @var int|null Column length. */
     protected ?int $length = null;
 
@@ -19,6 +20,9 @@ abstract class ColumnAbstract implements ColumnInterface
 
     /** @var bool Is primary. */
     protected bool $primary = false;
+
+    /** @var string Property name. */
+    protected string $property;
 
     /**
      * Constructor.
@@ -112,6 +116,27 @@ abstract class ColumnAbstract implements ColumnInterface
     public function setPrimary (bool $primary): void
     {
         $this->primary = $primary;
+    }
+
+    /**
+     * Get property name.
+     *
+     * @return string
+     */
+    public function getBoundProperty (): string
+    {
+        return $this->property;
+    }
+
+    /**
+     * Set property name.
+     *
+     * @param string $propertyName
+     * @return void
+     */
+    public function setBoundProperty (string $propertyName): void
+    {
+        $this->property = $propertyName;
     }
 
     /**

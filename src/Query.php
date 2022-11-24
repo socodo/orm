@@ -25,6 +25,9 @@ class Query
     /** @var array Join clause dataset. */
     protected array $joins = [];
 
+    /** @var array Map of key where values are bound to. */
+    protected array $valueKeyBounds = [];
+
     /** @var string|null Compiled query string, */
     protected ?string $compiledString = null;
 
@@ -63,6 +66,7 @@ class Query
             QueryTypes::Select => $this->buildSelectQueryString(),
             QueryTypes::Insert => $this->buildInsertQueryString(),
             QueryTypes::Update => $this->buildUpdateQueryString(),
+            QueryTypes::Upsert => $this->buildUpsertQueryString(),
             QueryTypes::Delete => $this->buildDeleteQueryString(),
         };
     }
@@ -119,6 +123,36 @@ class Query
     protected function buildUpdateQueryString (): string
     {
         return '';
+    }
+
+    /**
+     * Build query string for upsert query.
+     *
+     * @return string
+     */
+    protected function buildUpsertQueryString (): string
+    {
+        $queryArr = [];
+        $queryArr[] = 'INSERT INTO';
+        $queryArr[] = $this->targetTable;
+
+        $columnArr = [];
+        $valueArr = [];
+        $updateArr = [];
+        foreach ($this->valueKeyBounds as $key => $bound)
+        {
+            $columnArr[] = $key;
+            $valueArr[] = $bound;
+            $updateArr[] = $key . ' = ' . $bound;
+        }
+
+        $queryArr[] = '(' . implode(', ', $columnArr) . ')';
+        $queryArr[] = 'VALUES';
+        $queryArr[] = '(' . implode(', ', $valueArr) . ')';
+        $queryArr[] = 'ON DUPLICATE KEY UPDATE';
+        $queryArr[] = implode(', ', $updateArr);
+
+        return implode(' ', $queryArr);
     }
 
     protected function buildDeleteQueryString (): string
@@ -310,5 +344,25 @@ class Query
             'targetSearchColumn' => $targetSearchColumn,
             'fromSearchColumn' => $fromSearchColumn
         ];
+    }
+
+    /**
+     * Add value dataset.
+     *
+     * @param string $key
+     * @param mixed $value
+     * @return void
+     */
+    public function addValue (string $key, mixed $value): void
+    {
+        $queryType = $this->queryType;
+        if ($queryType == QueryTypes::Select || $queryType == QueryTypes::Delete)
+        {
+            throw new QueryResolutionException(static::class . '::addValue() Cannot set value dataset on Select or Delete typed query.');
+        }
+
+        $bindingKey = $this->getRandomBindingName('value', $key);
+        $this->bindings[$bindingKey] = $value;
+        $this->valueKeyBounds[$key] = $bindingKey;
     }
 }

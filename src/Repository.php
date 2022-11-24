@@ -111,6 +111,78 @@ class Repository
     }
 
     /**
+     * Upsert the model.
+     *
+     * @param Model $model
+     * @param bool $recursive
+     * @return bool
+     */
+    public function save (Model $model, bool $recursive = true): bool
+    {
+        $db = DB::getInstance();
+        if ($recursive)
+        {
+            $db->begin();
+
+            /** @var ModelColumn $column */
+            foreach ($this->findJoinColumns() as $column)
+            {
+                if ($model->{$column->getBoundProperty()} !== null)
+                {
+                    $columnModel = $column->getModelName();
+                    $columnRepository = new Repository($columnModel);
+                    $result = $columnRepository->save($model->{$column->getBoundProperty()});
+                    if ($result === false)
+                    {
+                        $db->rollback();
+                        return false;
+                    }
+                }
+            }
+        }
+
+        $query = $this->createBaseQuery(QueryTypes::Upsert);
+        foreach ($this->modelClass::getColumns() as $column)
+        {
+            if (!$column instanceof ModelColumn)
+            {
+                $query->addValue($column->getName(), $model->{$column->getBoundProperty()} ?? $column->getDefault());
+                continue;
+            }
+
+            /** @var Model $columnModel */
+            if ($model->{$column->getBoundProperty()} !== null)
+            {
+                $columnModel = $column->getModelName();
+                foreach ($columnModel::getColumns() as $innerColumn)
+                {
+                    if ($innerColumn->isPrimary())
+                    {
+                        $query->addValue($column->getName(), $model->{$column->getBoundProperty()}->{$innerColumn->getBoundProperty()});
+                        break;
+                    }
+                }
+            }
+        }
+
+        $result = $db->query($query, $query->getBindings());
+        if ($result === false)
+        {
+            $recursive && $db->rollback();
+            return false;
+        }
+
+        $primary = $this->modelClass::getPrimaryColumn()->getBoundProperty();
+        if (!isset($model->{$primary}))
+        {
+            $model->{$primary} = $db->getLastInsertId();
+        }
+
+        $recursive && $db->commit();
+        return true;
+    }
+
+    /**
      * Create a base query instance.
      *
      * @param QueryTypes $type
@@ -121,22 +193,21 @@ class Repository
         $query = new Query();
         $query->setQueryType($type);
         $query->setTargetTable($this->modelClass::getTableName());
-        $query->setTargetColumns(array_values(array_map(static function (ColumnInterface $column) {
+        $query->setTargetColumns(array_map(static function (ColumnInterface $column) {
             return $column->getName();
-        }, $this->modelClass::getColumns())));
+        }, $this->modelClass::getColumns()));
 
         if ($type == QueryTypes::Select)
         {
-            $joins = $this->findJoinColumns();
             /** @var ModelColumn $join */
-            foreach ($joins as $join)
+            foreach ($this->findJoinColumns() as $join)
             {
                 /** @var class-string<Model> $joinModel */
                 $joinModel = $join->getModelName();
                 $joinPrimary = $joinModel::getPrimaryColumn();
-                $query->addJoin($joinModel::getTableName(), array_values(array_map(static function (ColumnInterface $column) {
+                $query->addJoin($joinModel::getTableName(), array_map(static function (ColumnInterface $column) {
                     return $column->getName();
-                }, $joinModel::getColumns())), $joinPrimary->getName(), $join->getName());
+                }, $joinModel::getColumns()), $joinPrimary->getName(), $join->getName());
             }
         }
 

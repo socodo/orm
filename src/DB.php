@@ -14,6 +14,9 @@ class DB
     /** @var PDO PDO instance. */
     protected PDO $pdo;
 
+    /** @var int Transaction savepoint. */
+    protected int $transactionSavepoint = 0;
+
     /**
      * Get a singleton instance.
      *
@@ -49,9 +52,9 @@ class DB
      *
      * @param string $query
      * @param array $bindings
-     * @return PDOStatement
+     * @return false|PDOStatement
      */
-    public function query (string $query, array $bindings = []): PDOStatement
+    public function query (string $query, array $bindings = []): false|PDOStatement
     {
         $stmt = $this->pdo->prepare($query);
         foreach ($bindings as $key => $value)
@@ -59,7 +62,12 @@ class DB
             $stmt->bindValue($key, $value);
         }
 
-        $stmt->execute();
+        $result = $stmt->execute();
+        if ($result === false)
+        {
+            return false;
+        }
+
         return $stmt;
     }
 
@@ -67,9 +75,9 @@ class DB
      * Execute raw query.
      *
      * @param string $query
-     * @return bool|PDOStatement
+     * @return false|PDOStatement
      */
-    public function rawQuery (string $query): bool|PDOStatement
+    public function rawQuery (string $query): false|PDOStatement
     {
         return $this->pdo->query($query);
     }
@@ -106,6 +114,11 @@ class DB
     public function queryThenFetch (string $query, array $bindings = []): false|object
     {
         $stmt = $this->query($query, $bindings);
+        if ($stmt === false)
+        {
+            return false;
+        }
+
         return $this->fetch($stmt);
     }
 
@@ -126,7 +139,13 @@ class DB
      */
     public function begin (): bool
     {
-        return $this->pdo->beginTransaction();
+        if ($this->transactionSavepoint++ === 0)
+        {
+            return $this->pdo->beginTransaction();
+        }
+
+        $this->rawQuery('SAVEPOINT ts_' . $this->transactionSavepoint);
+        return $this->transactionSavepoint >= 0;
     }
 
     /**
@@ -136,7 +155,12 @@ class DB
      */
     public function commit (): bool
     {
-        return $this->pdo->commit();
+        if (--$this->transactionSavepoint === 0)
+        {
+            return $this->pdo->commit();
+        }
+
+        return $this->transactionSavepoint >= 0;
     }
 
     /**
@@ -146,6 +170,12 @@ class DB
      */
     public function rollback (): bool
     {
+        if (--$this->transactionSavepoint > 0)
+        {
+            $this->rawQuery('ROLLBACK TO ts_' . $this->transactionSavepoint);
+            return true;
+        }
+
         return $this->pdo->rollBack();
     }
 }

@@ -2,8 +2,6 @@
 
 namespace Socodo\ORM\Interfaces;
 
-use Socodo\ORM\Enums\ColumnTypes;
-
 interface ColumnInterface
 {
     /**
@@ -65,6 +63,21 @@ interface ColumnInterface
      * @return void
      */
     public function setPrimary (bool $primary): void;
+
+    /**
+     * Get property name.
+     *
+     * @return string
+     */
+    public function getBoundProperty (): string;
+
+    /**
+     * Set property name.
+     *
+     * @param string $propertyName
+     * @return void
+     */
+    public function setBoundProperty (string $propertyName): void;
 
     /**
      * Handle PHP compatible data to raw data.
