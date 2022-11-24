@@ -88,7 +88,7 @@ class Repository
      * @param bool $lazy
      * @return Iterator<T>
      */
-    public function find (array $where = [], bool $lazy = false): Iterator
+    public function find (array $where = [], bool $lazy = true): Iterator
     {
         $query = $this->createBaseQuery(QueryTypes::Select);
         if (!empty($where))
@@ -100,19 +100,14 @@ class Repository
         $stmt = $db->query($query, $query->getBindings());
         if ($lazy)
         {
-            return new LazyModelIterator($this->modelClass, $stmt);
+            $iterator = $stmt->getIterator();
         }
-
-        $results = $db->fetchAll($stmt);
-        if ($results === false)
+        else
         {
-            return new ArrayIterator([]);
+            $iterator = new ArrayIterator($db->fetchAll($stmt));
         }
 
-        $modelClass = $this->modelClass;
-        return new ArrayIterator(array_map(static function ($result) use ($modelClass) {
-            return $modelClass::from($result);
-        }, $results));
+        return new ModelIterator($this->modelClass, $iterator);
     }
 
     /**

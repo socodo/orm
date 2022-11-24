@@ -8,13 +8,10 @@ use PDOStatement;
 /**
  * @template T
  */
-class LazyModelIterator implements Iterator
+class ModelIterator implements Iterator
 {
     /** @var class-string<T> Model name. */
     protected string $modelClass;
-
-    /** @var PDOStatement PDO statement. */
-    protected PDOStatement $stmt;
 
     /** @var Iterator PDO iterator. */
     protected Iterator $iterator;
@@ -23,13 +20,12 @@ class LazyModelIterator implements Iterator
      * Constructor.
      *
      * @param T $modelClass
-     * @param PDOStatement $stmt
+     * @param Iterator $dataIterator
      */
-    public function __construct (string $modelClass, PDOStatement $stmt)
+    public function __construct (string $modelClass, Iterator $dataIterator)
     {
         $this->modelClass = $modelClass;
-        $this->stmt = $stmt;
-        $this->iterator = $stmt->getIterator();
+        $this->iterator = $dataIterator;
     }
 
     /**
