@@ -115,9 +115,31 @@ class Query
         return implode(' ', $queryArr);
     }
 
+    /**
+     * Build query string for insert query.
+     *
+     * @return string
+     */
     protected function buildInsertQueryString (): string
     {
-        return '';
+        $queryArr = [];
+        $queryArr[] = 'INSERT INTO';
+        $queryArr[] = $this->targetTable;
+
+        $columnArr = [];
+        $valueArr = [];
+        foreach ($this->valueKeyBounds as $key => $bound)
+        {
+            $columnArr[] = $key;
+            $valueArr[] = $bound;
+        }
+
+        $queryArr[] = '(' . implode(', ', $columnArr) . ')';
+        $queryArr[] = 'VALUES';
+        $queryArr[] = '(' . implode(', ', $valueArr) . ')';
+
+        return implode(' ', $queryArr);
+
     }
 
     protected function buildUpdateQueryString (): string
@@ -132,23 +154,14 @@ class Query
      */
     protected function buildUpsertQueryString (): string
     {
-        $queryArr = [];
-        $queryArr[] = 'INSERT INTO';
-        $queryArr[] = $this->targetTable;
+        $queryArr = [ $this->buildInsertQueryString() ];
 
-        $columnArr = [];
-        $valueArr = [];
         $updateArr = [];
         foreach ($this->valueKeyBounds as $key => $bound)
         {
-            $columnArr[] = $key;
-            $valueArr[] = $bound;
             $updateArr[] = $key . ' = ' . $bound;
         }
 
-        $queryArr[] = '(' . implode(', ', $columnArr) . ')';
-        $queryArr[] = 'VALUES';
-        $queryArr[] = '(' . implode(', ', $valueArr) . ')';
         $queryArr[] = 'ON DUPLICATE KEY UPDATE';
         $queryArr[] = implode(', ', $updateArr);
 

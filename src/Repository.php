@@ -5,8 +5,10 @@ namespace Socodo\ORM;
 use ArrayIterator;
 use InvalidArgumentException;
 use Iterator;
+use Socodo\ORM\Columns\IntegerColumn;
 use Socodo\ORM\Columns\ModelColumn;
 use Socodo\ORM\Enums\QueryTypes;
+use Socodo\ORM\Exceptions\RepositoryResolutionException;
 use Socodo\ORM\Interfaces\ColumnInterface;
 
 /**
@@ -29,7 +31,7 @@ class Repository
     {
         if (!is_subclass_of($modelClass, Model::class))
         {
-            throw new InvalidArgumentException('Socodo\ORM\Repository::__construct() Argument #1 ($modelClass) must be sub-class of Socodo\ORM\Model.');
+            throw new InvalidArgumentException('Socodo\\ORM\\Repository::__construct() Argument #1 ($modelClass) must be sub-class of Socodo\ORM\Model.');
         }
 
         $this->modelClass = $modelClass;
@@ -113,11 +115,70 @@ class Repository
     /**
      * Upsert the model.
      *
+     * @param T|array<T> $model
+     * @param bool $recursive
+     * @return bool
+     */
+    public function save (array|Model $model, bool $recursive = true): bool
+    {
+        if (is_array($model))
+        {
+            $db = DB::getInstance();
+            $db->begin();
+            foreach ($model as $m)
+            {
+                if ($this->save($m, $recursive) === false)
+                {
+                    $db->rollback();
+                    return false;
+                }
+            }
+
+            $db->commit();
+            return true;
+        }
+
+        return $this->write(QueryTypes::Upsert, $model, $recursive);
+    }
+
+    /**
+     * Insert the model.
+     *
+     * @param T|array<T> $model
+     * @param bool $recursive
+     * @return bool
+     */
+    public function insert (array|Model $model, bool $recursive = true): bool
+    {
+        if (is_array($model))
+        {
+            $db = DB::getInstance();
+            $db->begin();
+            foreach ($model as $m)
+            {
+                if ($this->insert($m, $recursive) === false)
+                {
+                    $db->rollback();
+                    return false;
+                }
+            }
+
+            $db->commit();
+            return true;
+        }
+
+        return $this->write(QueryTypes::Insert, $model, $recursive);
+    }
+
+    /**
+     * Execute Insert, Update, or Upsert query.
+     *
+     * @param QueryTypes $queryType
      * @param Model $model
      * @param bool $recursive
      * @return bool
      */
-    public function save (Model $model, bool $recursive = true): bool
+    protected function write (QueryTypes $queryType, Model $model, bool $recursive = true): bool
     {
         $db = DB::getInstance();
         if ($recursive)
@@ -131,7 +192,7 @@ class Repository
                 {
                     $columnModel = $column->getModelName();
                     $columnRepository = new Repository($columnModel);
-                    $result = $columnRepository->save($model->{$column->getBoundProperty()});
+                    $result = $columnRepository->write($queryType, $model->{$column->getBoundProperty()}, $recursive);
                     if ($result === false)
                     {
                         $db->rollback();
@@ -141,7 +202,13 @@ class Repository
             }
         }
 
-        $query = $this->createBaseQuery(QueryTypes::Upsert);
+        $primary = $model::getPrimaryColumn();
+        if (!isset($model->{$primary->getBoundProperty()}) && !($primary instanceof IntegerColumn && $primary->isAutoIncrement()))
+        {
+            throw new RepositoryResolutionException('Socodo\\ORM\\Repository::write() Property $' . $primary->getBoundProperty() . ' for primary key "' . $primary->getName() . '" must be set.');
+        }
+
+        $query = $this->createBaseQuery($queryType);
         foreach ($this->modelClass::getColumns() as $column)
         {
             if (!$column instanceof ModelColumn)
