@@ -14,9 +14,15 @@ use Tests\Support\UnitTester;
 
 class RepositoryTest extends Unit
 {
+    /** @var UnitTester Unit tester. */
     protected UnitTester $tester;
 
-    protected function _before ()
+    /**
+     * Before event.
+     *
+     * @return void
+     */
+    protected function _before (): void
     {
         new DB('127.0.0.1:3306', 'socodo', 'socodo', 'socodo');
     }

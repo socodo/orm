@@ -8,13 +8,13 @@ suites:
             enabled:
                 - Asserts
                 - Db:
-                    dsn: 'mysql:host=127.0.0.1:3306;dbname=socodo'
+                    dsn: 'mysql:host=127.0.0.1;dbname=socodo'
                     user: 'socodo'
                     password: 'socodo'
                     dump: 'tests/_data/dump.sql'
-                    populate: false
-                    cleanup: false
-                    populator: 'mysql -u $user -h $host -p $password $dbname < $dump'
+                    populate: true
+                    cleanup: true
+                    populator: '(mysql -s -u $user -h $host -p$password $dbname < $dump) 2>&1 | grep -v "Warning: Using a password"'
         step_decorators: ~
 
 settings:
