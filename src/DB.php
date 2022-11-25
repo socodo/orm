@@ -172,7 +172,7 @@ class DB
     {
         if (--$this->transactionSavepoint > 0)
         {
-            $this->rawQuery('ROLLBACK TO ts_' . $this->transactionSavepoint);
+            $this->rawQuery('ROLLBACK TO ts_' . $this->transactionSavepoint + 1);
             return true;
         }
 

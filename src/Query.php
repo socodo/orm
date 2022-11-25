@@ -294,6 +294,34 @@ class Query
                 }
             }
 
+            else if (str_ends_with($key, '@'))
+            {
+                $operator = 'IN';
+                $key = trim(substr($key, 0, -1));
+
+                if (str_ends_with($key, '!'))
+                {
+                    $operator = 'NOT IN';
+                    $key = trim(substr($key, 0, -1));
+                }
+
+                if (!is_array($item))
+                {
+                    $item = [ $item ];
+                }
+
+                $inBindings = [];
+                foreach ($item as $i => $value)
+                {
+                    $binding = $this->getRandomBindingName('where', $key . '_' . $i);
+                    $inBindings[] = $binding;
+                    $bindings[$binding] = $value;
+                }
+
+                $queries[] = $this->targetTable . '.' . $key . ' ' . $operator . '(' . implode(', ', $inBindings) . ')';
+                continue;
+            }
+
             if ($item !== null)
             {
                 $binding = $this->getRandomBindingName('where', $key);
