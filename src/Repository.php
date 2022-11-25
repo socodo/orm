@@ -115,15 +115,15 @@ class Repository
     /**
      * Upsert the model.
      *
-     * @param T|array<T> $model
+     * @param T|array<T>|ModelIterator<T> $model
      * @param bool $recursive
      * @return bool
      */
-    public function save (array|Model $model, bool $recursive = true): bool
+    public function save (array|ModelIterator|Model $model, bool $recursive = true): bool
     {
-        if (is_array($model))
+        $db = DB::getInstance();
+        if (is_array($model) || $model instanceof ModelIterator)
         {
-            $db = DB::getInstance();
             $db->begin();
             foreach ($model as $m)
             {
@@ -138,49 +138,6 @@ class Repository
             return true;
         }
 
-        return $this->write(QueryTypes::Upsert, $model, $recursive);
-    }
-
-    /**
-     * Insert the model.
-     *
-     * @param T|array<T> $model
-     * @param bool $recursive
-     * @return bool
-     */
-    public function insert (array|Model $model, bool $recursive = true): bool
-    {
-        if (is_array($model))
-        {
-            $db = DB::getInstance();
-            $db->begin();
-            foreach ($model as $m)
-            {
-                if ($this->insert($m, $recursive) === false)
-                {
-                    $db->rollback();
-                    return false;
-                }
-            }
-
-            $db->commit();
-            return true;
-        }
-
-        return $this->write(QueryTypes::Insert, $model, $recursive);
-    }
-
-    /**
-     * Execute Insert, Update, or Upsert query.
-     *
-     * @param QueryTypes $queryType
-     * @param Model $model
-     * @param bool $recursive
-     * @return bool
-     */
-    protected function write (QueryTypes $queryType, Model $model, bool $recursive = true): bool
-    {
-        $db = DB::getInstance();
         if ($recursive)
         {
             $db->begin();
@@ -192,7 +149,7 @@ class Repository
                 {
                     $columnModel = $column->getModelName();
                     $columnRepository = new Repository($columnModel);
-                    $result = $columnRepository->write($queryType, $model->{$column->getBoundProperty()}, $recursive);
+                    $result = $columnRepository->save($model->{$column->getBoundProperty()}, $recursive);
                     if ($result === false)
                     {
                         $db->rollback();
@@ -208,7 +165,7 @@ class Repository
             throw new RepositoryResolutionException('Socodo\\ORM\\Repository::write() Property $' . $primary->getBoundProperty() . ' for primary key "' . $primary->getName() . '" must be set.');
         }
 
-        $query = $this->createBaseQuery($queryType);
+        $query = $this->createBaseQuery(QueryTypes::Upsert);
         foreach ($this->modelClass::getColumns() as $column)
         {
             if (!$column instanceof ModelColumn)
