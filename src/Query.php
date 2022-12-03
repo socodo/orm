@@ -168,9 +168,20 @@ class Query
         return implode(' ', $queryArr);
     }
 
+    /**
+     * Build query string for delete query.
+     *
+     * @return string
+     */
     protected function buildDeleteQueryString (): string
     {
-        return '';
+        $queryArr = [];
+        $queryArr[] = 'DELETE FROM';
+        $queryArr[] = $this->targetTable;
+        $queryArr[] = 'WHERE';
+        $queryArr[] = $this->where;
+
+        return implode(' ', $queryArr);
     }
 
     /**
@@ -255,11 +266,11 @@ class Query
 
         foreach ($where as $key => $item)
         {
-            if (is_array($item) && !str_ends_with($key, '~'))
+            if (is_array($item) && !str_ends_with($key, '@'))
             {
                 $output = $this->buildWhere($item);
-                $queries = array_merge($queries, $output['query']);
-                $bindings = array_merge($queries, $output['bindings']);
+                $queries[] = $output['query'];
+                $bindings = array_merge($bindings, $output['bindings']);
                 continue;
             }
 
@@ -318,7 +329,7 @@ class Query
                     $bindings[$binding] = $value;
                 }
 
-                $queries[] = $this->targetTable . '.' . $key . ' ' . $operator . '(' . implode(', ', $inBindings) . ')';
+                $queries[] = $this->targetTable . '.' . $key . ' ' . $operator . ' (' . implode(', ', $inBindings) . ')';
                 continue;
             }
 

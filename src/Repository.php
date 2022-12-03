@@ -88,9 +88,9 @@ class Repository
      *
      * @param array $where
      * @param bool $lazy
-     * @return Iterator<T>
+     * @return ModelIterator<T>
      */
-    public function find (array $where = [], bool $lazy = true): Iterator
+    public function find (array $where = [], bool $lazy = true): ModelIterator
     {
         $query = $this->createBaseQuery(QueryTypes::Select);
         if (!empty($where))
@@ -147,8 +147,9 @@ class Repository
             {
                 if ($model->{$column->getBoundProperty()} !== null)
                 {
+                    /** @var Model $columnModel */
                     $columnModel = $column->getModelName();
-                    $columnRepository = new Repository($columnModel);
+                    $columnRepository = $columnModel::getRepository();
                     $result = $columnRepository->save($model->{$column->getBoundProperty()}, $recursive);
                     if ($result === false)
                     {
@@ -204,6 +205,41 @@ class Repository
 
         $recursive && $db->commit();
         return true;
+    }
+
+    /**
+     * Delete the model.
+     *
+     * @param array|ModelIterator|Model $model
+     * @return bool
+     */
+    public function delete (array|ModelIterator|Model $model): bool
+    {
+        if (!is_array($model) && !($model instanceof ModelIterator))
+        {
+            $model = [ $model ];
+        }
+
+        $primaryColumn = null;
+        $primaries = [];
+
+        /** @var Model $m */
+        foreach ($model as $m)
+        {
+            if ($primaryColumn === null)
+            {
+                $primaryColumn = $m::getPrimaryColumn();
+            }
+
+            $primaries[] = $m->{$primaryColumn->getBoundProperty()};
+        }
+
+        $query = $this->createBaseQuery(QueryTypes::Delete);
+        $query->setWhere([ $primaryColumn->getName() . ' @' => $primaries ]);
+
+        $db = DB::getInstance();
+        $result = $db->query($query, $query->getBindings());
+        return !!$result;
     }
 
     /**

@@ -28,12 +28,30 @@ class Model
     /** @var array<string,ColumnInterface> Primary columns. */
     protected static array $primaries = [];
 
+    /** @var array<string,Repository> Model repository. */
+    protected static array $repositories = [];
+
     /**
      * Constructor.
      */
     public function __construct ()
     {
 
+    }
+
+    /**
+     * Get repository about the model.
+     *
+     * @return Repository
+     */
+    public static function getRepository (): Repository
+    {
+        if (!isset(static::$repositories[static::class]))
+        {
+            static::$repositories[static::class] = new Repository(static::class);
+        }
+
+        return static::$repositories[static::class];
     }
 
     /**

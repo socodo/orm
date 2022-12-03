@@ -120,6 +120,29 @@ class RepositoryTest extends Unit
         $this->assertTrue($repository->save($user));
         $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
     }
+
+    /**
+     * Repository::delete()
+     *
+     * @return void
+     */
+    public function testDelete (): void
+    {
+        $repository = new Repository(User::class);
+
+        $user = new User();
+        $user->emailAddress = 'delete@delete.com';
+        $this->assertTrue($repository->save($user));
+        $this->tester->seeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
+
+        $repository->delete($user);
+        $this->tester->dontSeeInDatabase('user', [ 'id' => $user->id, 'email_address' => $user->emailAddress ]);
+
+        $users = $repository->find();
+        $repository->delete($users);
+        $this->tester->dontSeeInDatabase('user', [ 'id' => 1 ]);
+        $this->tester->dontSeeInDatabase('user', [ 'id' => 2 ]);
+    }
 }
 
 #[Table('user')]
